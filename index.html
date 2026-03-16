@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Phaser Survivor Game</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0d0d1a;
+        overflow: hidden;
+      }
+      
+      canvas {
+        background: #0d0d1a !important;
+      }
+
+      canvas {
+        display: block;
+        margin: 0;
+        padding: 0;
+      }
+      #game-container {
+        background: #0d0d1a;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      #damage-flash {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 0, 0, 0.3);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 9999;
+      }
+
+      /* Upgrade Screen Styles */
+      #upgrade-screen {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        flex-direction: column;
+      }
+
+      #upgrade-screen h2 {
+        color: white;
+        font-size: 48px;
+        margin-bottom: 40px;
+        text-align: center;
+      }
+
+      .upgrade-cards-container {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+      }
+
+      .upgrade-card {
+        background-color: #222;
+        border: 2px solid white;
+        padding: 20px;
+        width: 150px;
+        text-align: center;
+        cursor: pointer;
+        transition: transform 0.1s;
+      }
+
+      .upgrade-card:hover {
+        transform: scale(1.05);
+        background-color: #333;
+      }
+
+      .upgrade-card h3 {
+        color: white;
+        font-size: 20px;
+        margin: 0 0 10px 0;
+      }
+
+      .upgrade-card p {
+        color: #ccc;
+        font-size: 14px;
+        margin: 0;
+        line-height: 1.4;
+      }
+
+      /* Game Over Screen Styles */
+      #game-over-screen {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        flex-direction: column;
+      }
+
+      #game-over-screen h1 {
+        color: #ff0000;
+        font-size: 64px;
+        margin-bottom: 20px;
+        text-align: center;
+        text-shadow: 2px 2px 4px black;
+      }
+
+      #game-over-time {
+        color: #ffff00;
+        font-size: 32px;
+        margin-bottom: 40px;
+        text-align: center;
+        text-shadow: 1px 1px 2px black;
+      }
+
+      #restart-button {
+        color: white;
+        font-size: 32px;
+        background-color: #333333;
+        padding: 15px 40px;
+        border: 2px solid #555;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.1s, background-color 0.2s;
+        text-align: center;
+      }
+
+      #restart-button:hover {
+        transform: scale(1.05);
+        background-color: #555555;
+      }
+    </style>
+    <script type="module" crossorigin src="/survivor-game2/assets/index-D-y5B_uA.js"></script>
+    <link rel="stylesheet" crossorigin href="/survivor-game2/assets/index-CsUDhMuy.css">
+  </head>
+  <body>
+    <div id="game-container"></div>
+    
+    <!-- Damage Flash -->
+    <div id="damage-flash" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,0.35);pointer-events:none;opacity:0;transition:opacity 0.3s ease;z-index:50;"></div>
+    
+    <!-- HUD -->
+    <div id="hud" style="position:fixed;top:0;left:0;width:100%;pointer-events:none;z-index:20;">
+      <!-- Top left -->
+      <div style="position:absolute;top:12px;left:16px;display:flex;gap:16px;align-items:center;">
+        <span id="hud-level" style="color:#ffe066;font-size:15px;font-weight:bold;font-family:monospace;">LVL 1</span>
+        <span id="hud-time" style="color:#66eeff;font-size:15px;font-family:monospace;">TIME: 0:00</span>
+      </div>
+      <!-- Top right -->
+      <div style="position:absolute;top:10px;right:16px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="color:white;font-size:11px;font-family:monospace;">HP</span>
+          <div style="width:160px;height:10px;background:#333;border-radius:5px;overflow:hidden;">
+            <div id="hp-bar" style="height:100%;width:100%;background:#e03030;border-radius:5px;transition:width 0.1s;"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="color:white;font-size:11px;font-family:monospace;">XP</span>
+          <div style="width:160px;height:10px;background:#333;border-radius:5px;overflow:hidden;">
+            <div id="xp-bar" style="height:100%;width:0%;background:#e0e000;border-radius:5px;transition:width 0.1s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Upgrade Screen -->
+    <div id="upgrade-screen">
+      <h2>LEVEL UP!</h2>
+      <div class="upgrade-cards-container">
+        <div class="upgrade-card" data-upgrade="pierce">
+          <h3>Pierce</h3>
+          <p>Bullets pass through 1 extra enemy</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="multishot">
+          <h3>Multishot</h3>
+          <p>Fire an extra bullet every 3 shots</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="vampire">
+          <h3>Vampire</h3>
+          <p>Killing an enemy heals 2 HP</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="thorns">
+          <h3>Thorns</h3>
+          <p>Reflect 20 damage to enemies that touch you</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="wider-spread" style="display:none">
+          <h3>Wider Spread</h3>
+          <p>Increase bullet spread angle</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="faster-fire-rate">
+          <h3>Faster Fire Rate</h3>
+          <p>Reduce fire interval by 200ms</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="more-speed">
+          <h3>More Speed</h3>
+          <p>Increase player speed by 20</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="extra-hp">
+          <h3>Extra HP</h3>
+          <p>Increase max HP by 25 and heal 25</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="orb-magnet">
+          <h3>Orb Magnet</h3>
+          <p>XP orbs are attracted toward you</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="stronger-magnet" style="display:none">
+          <h3>Stronger Magnet</h3>
+          <p>Orbs fly toward you faster</p>
+        </div>
+        <div class="upgrade-card" data-upgrade="bigger-bullets">
+          <h3>Bigger Bullets</h3>
+          <p>Increase bullet size and hit radius</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:90;justify-content:center;align-items:center;">
+      <h1 style="color:white;font-size:64px;">PAUSED</h1>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen">
+      <h1>GAME OVER</h1>
+      <div id="game-over-time">Time: 0:00</div>
+      <div id="restart-button">Click to Restart</div>
+    </div>
+
+    <!-- Pause Hint -->
+    <div id="pause-hint" style="position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.4);font-size:13px;pointer-events:none;z-index:10;">SPACE to pause</div>
+
+  </body>
+</html>

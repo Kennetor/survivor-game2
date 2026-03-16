@@ -1,0 +1,37 @@
+# Cline Rules — Phaser Survivor Game
+
+## Language
+- Always respond and comment in English
+
+## Code Style
+- Use vanilla JavaScript (no TypeScript)
+- Use ES6 modules (import/export)
+- Prefer const over let where possible
+- No semicolons optional — but be consistent throughout the project
+
+## Project Structure
+- Entry point: src/main.js
+- Game config: src/config.js
+- Scenes go in: src/scenes/
+- Game entities (Player, Enemy, etc.) go in: src/entities/
+- Utility/helper functions go in: src/utils/
+- Never dump everything into a single file
+
+## Phaser Specifics
+- Use Phaser 3 (installed via npm)
+- Use Phaser.Scene class extensions for all scenes
+- Keep physics, input, and rendering logic inside the scene or entity it belongs to
+- Use Phaser's arcade physics for movement and collision
+
+## How to Work
+- Make one focused change at a time — don't refactor unrelated code while adding features
+- If a file gets longer than ~200 lines, suggest splitting it
+- Don't add features I haven't asked for
+- If something is unclear, ask before writing code — don't guess and produce a lot of wrong code
+- Prefer small, testable steps over big rewrites
+
+## What to Avoid
+- No TypeScript
+- No CSS frameworks (this is a canvas game)
+- Don't install unnecessary packages
+- Don't rewrite working code unless I explicitly ask
