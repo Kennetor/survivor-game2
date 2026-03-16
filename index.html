@@ -44,15 +44,18 @@
       #upgrade-screen {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        flex-direction: column;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.85);
+        z-index: 80;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 16px !important;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;
       }
 
       #upgrade-screen h2 {
@@ -60,22 +63,19 @@
         font-size: 48px;
         margin-bottom: 40px;
         text-align: center;
-      }
-
-      .upgrade-cards-container {
-        display: flex;
-        gap: 20px;
-        justify-content: center;
+        width: 100%;
       }
 
       .upgrade-card {
         background-color: #222;
         border: 2px solid white;
         padding: 20px;
-        width: 150px;
+        min-width: 180px;
+        max-width: 220px;
         text-align: center;
         cursor: pointer;
         transition: transform 0.1s;
+        margin-bottom: 12px;
       }
 
       .upgrade-card:hover {
@@ -94,6 +94,67 @@
         font-size: 14px;
         margin: 0;
         line-height: 1.4;
+      }
+
+      /* Desktop horizontal layout */
+      @media (min-width: 769px) {
+        #upgrade-screen {
+          flex-direction: column !important;
+          justify-content: center !important;
+          align-items: center !important;
+          padding: 40px 20px !important;
+        }
+        
+        .upgrade-cards-container {
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: wrap !important;
+          justify-content: center !important;
+          align-items: flex-start !important;
+          gap: 20px !important;
+          width: 100% !important;
+        }
+        
+        .upgrade-card {
+          flex: 0 0 auto !important;
+          margin-bottom: 0 !important;
+          min-width: 200px !important;
+          max-width: 200px !important;
+          height: 100px !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+          align-items: center !important;
+        }
+        
+        .upgrade-card h3 {
+          margin-bottom: 15px !important;
+        }
+        
+        .upgrade-card p {
+          text-align: center !important;
+          margin: 0 !important;
+          line-height: 1.5 !important;
+        }
+      }
+
+      @media (max-width: 768px) {
+        #upgrade-screen {
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          padding: 60px 20px 20px 20px !important;
+          gap: 20px !important;
+        }
+        .upgrade-card {
+          width: 85% !important;
+          max-width: 320px !important;
+          min-width: unset !important;
+          margin: 8px 0 !important;
+          padding: 16px !important;
+          border: 1px solid rgba(255,255,255,0.3) !important;
+          border-radius: 8px !important;
+          background: rgba(30,30,30,0.95) !important;
+        }
       }
 
       /* Game Over Screen Styles */
@@ -122,7 +183,7 @@
       #game-over-time {
         color: #ffff00;
         font-size: 32px;
-        margin-bottom: 40px;
+        margin: 20px 0 40px 0;
         text-align: center;
         text-shadow: 1px 1px 2px black;
       }
@@ -144,7 +205,33 @@
         background-color: #555555;
       }
     </style>
-    <script type="module" crossorigin src="/survivor-game2/assets/index-D-y5B_uA.js"></script>
+    
+    <style>
+      @media (max-width: 768px) {
+        #upgrade-screen {
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          overflow-y: auto !important;
+          padding: 20px !important;
+          gap: 12px !important;
+        }
+        .upgrade-card {
+          width: 85% !important;
+          min-width: unset !important;
+          max-width: 320px !important;
+        }
+        /* Hide pause hint text on mobile */
+        #pause-hint {
+          display: none !important;
+        }
+        /* Hide aim mode display on mobile */
+        #aim-mode-display {
+          display: none !important;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/survivor-game2/assets/index-HmCyvUqc.js"></script>
     <link rel="stylesheet" crossorigin href="/survivor-game2/assets/index-CsUDhMuy.css">
   </head>
   <body>
@@ -237,11 +324,309 @@
     <div id="game-over-screen">
       <h1>GAME OVER</h1>
       <div id="game-over-time">Time: 0:00</div>
+      <div id="game-over-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;color:#aaa;font-size:14px;margin:15px auto;text-align:left;width:280px;">
+        <div>Enemies Killed: <span id="stat-kills" style="color:white;"></span></div>
+        <div>Damage Dealt: <span id="stat-damage-dealt" style="color:white;"></span></div>
+        <div>Damage Taken: <span id="stat-damage-taken" style="color:white;"></span></div>
+        <div>Level Reached: <span id="stat-level" style="color:white;"></span></div>
+      </div>
       <div id="restart-button">Click to Restart</div>
     </div>
 
     <!-- Pause Hint -->
-    <div id="pause-hint" style="position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.4);font-size:13px;pointer-events:none;z-index:10;">SPACE to pause</div>
+    <div id="pause-hint" style="position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.4);font-size:13px;pointer-events:none;z-index:10;">SPACE to pause | T to toggle aim</div>
+    
+    <!-- Aim Mode Display -->
+    <div id="aim-mode-display" style="position:fixed;bottom:12px;right:16px;color:rgba(255,255,255,0.6);font-size:12px;pointer-events:none;z-index:10;display:none;">AIM: AUTO</div>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:95;flex-direction:column;justify-content:center;align-items:center;gap:20px;">
+      <h2 style="color:white;margin-bottom:10px;">PAUSED</h2>
+      <button id="mobile-resume" style="width:200px;padding:12px;font-size:16px;cursor:pointer;">Resume</button>
+      <button id="mobile-hide-controls" style="width:200px;padding:12px;font-size:16px;cursor:pointer;">Hide Controls</button>
+      <button id="mobile-float-controls" style="width:200px;padding:12px;font-size:16px;cursor:pointer;">Float Controls</button>
+      <button id="mobile-restart" style="width:200px;padding:12px;font-size:16px;cursor:pointer;color:#ff4444;background:transparent;border:1px solid #ff4444;">Restart</button>
+    </div>
+
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" style="display:none;position:fixed;bottom:12px;right:16px;z-index:40;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;font-size:20px;width:40px;height:40px;border-radius:8px;cursor:pointer;">☰</button>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" style="display:none;">
+      <!-- Left joystick -->
+      <div id="joystick-zone" style="position:fixed;bottom:80px;left:40px;width:120px;height:120px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:50%;z-index:30;">
+        <div id="joystick-knob" style="position:absolute;width:50px;height:50px;background:rgba(255,255,255,0.4);border-radius:50%;top:35px;left:35px;"></div>
+      </div>
+    </div>
+    
+    <!-- Floating Joystick Indicator -->
+    <div id="float-joystick" style="display:none; position:fixed; width:80px; height:80px; background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.3); border-radius:50%; pointer-events:none; z-index:35; transform:translate(-50%,-50%);">
+      <div id="float-knob" style="position:absolute; width:30px; height:30px; background:rgba(255,255,255,0.4); border-radius:50%; top:25px; left:25px;"></div>
+    </div>
+
+    <script>
+      // Mobile detection and touch controls
+      const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const mobileControls = document.getElementById('mobile-controls');
+      const joystickZone = document.getElementById('joystick-zone');
+      const joystickKnob = document.getElementById('joystick-knob');
+      const mobileMenu = document.getElementById('mobile-menu');
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      const mobileResumeBtn = document.getElementById('mobile-resume');
+      const mobileHideControlsBtn = document.getElementById('mobile-hide-controls');
+      const mobileRestartBtn = document.getElementById('mobile-restart');
+      
+      // Show mobile controls and menu button only on touch devices
+      if (isMobile) {
+        mobileControls.style.display = 'block';
+        mobileMenuBtn.style.display = 'block';
+      }
+
+      // Virtual joystick variables
+      let isJoystickActive = false;
+      let joystickCenterX = 0;
+      let joystickCenterY = 0;
+      let joystickRadius = 35; // Max radius for knob movement
+      let touchId = null;
+
+      // Initialize joystick center
+      function updateJoystickCenter() {
+        const rect = joystickZone.getBoundingClientRect();
+        joystickCenterX = rect.left + rect.width / 2;
+        joystickCenterY = rect.top + rect.height / 2;
+      }
+
+      // Touch event handlers for joystick
+      joystickZone.addEventListener('touchstart', (e) => {
+        if (touchId !== null) return; // Only handle one touch at a time
+        touchId = e.changedTouches[0].identifier;
+        isJoystickActive = true;
+        updateJoystickCenter();
+        updateJoystickPosition(e.changedTouches[0]);
+        e.preventDefault();
+      }, { passive: false });
+
+      joystickZone.addEventListener('touchmove', (e) => {
+        if (!isJoystickActive || e.changedTouches[0].identifier !== touchId) return;
+        updateJoystickPosition(e.changedTouches[0]);
+        e.preventDefault();
+      }, { passive: false });
+
+      joystickZone.addEventListener('touchend', (e) => {
+        if (e.changedTouches[0].identifier === touchId) {
+          isJoystickActive = false;
+          touchId = null;
+          resetJoystick();
+          // Send stop movement command to game
+          window.dispatchEvent(new CustomEvent('joystick-move', { 
+            detail: { x: 0, y: 0, active: false } 
+          }));
+        }
+        e.preventDefault();
+      }, { passive: false });
+
+      joystickZone.addEventListener('touchcancel', (e) => {
+        if (e.changedTouches[0].identifier === touchId) {
+          isJoystickActive = false;
+          touchId = null;
+          resetJoystick();
+          window.dispatchEvent(new CustomEvent('joystick-move', { 
+            detail: { x: 0, y: 0, active: false } 
+          }));
+        }
+        e.preventDefault();
+      }, { passive: false });
+
+      function updateJoystickPosition(touch) {
+        const dx = touch.clientX - joystickCenterX;
+        const dy = touch.clientY - joystickCenterY;
+        
+        // Calculate distance from center
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Normalize and clamp to joystick radius
+        let nx = dx;
+        let ny = dy;
+        if (distance > joystickRadius) {
+          const scale = joystickRadius / distance;
+          nx = dx * scale;
+          ny = dy * scale;
+        }
+        
+        // Update knob position
+        joystickKnob.style.transform = `translate(${nx}px, ${ny}px)`;
+        
+        // Normalize to -1 to 1 range
+        const normalizedX = nx / joystickRadius;
+        const normalizedY = ny / joystickRadius;
+        
+        // Send movement command to game
+        window.dispatchEvent(new CustomEvent('joystick-move', { 
+          detail: { x: normalizedX, y: normalizedY, active: true } 
+        }));
+      }
+
+      function resetJoystick() {
+        joystickKnob.style.transform = 'translate(0px, 0px)';
+      }
+
+      // Touch aiming for right side of screen
+      document.addEventListener('touchstart', (e) => {
+        const touch = e.changedTouches[0];
+        const rect = joystickZone.getBoundingClientRect();
+        
+        // Only handle touches on the right side of screen (not on joystick)
+        if (touch.clientX > rect.right) {
+          window.dispatchEvent(new CustomEvent('touch-aim', {
+            detail: {
+              x: touch.clientX,
+              y: touch.clientY
+            }
+          }));
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        const touch = e.changedTouches[0];
+        const rect = joystickZone.getBoundingClientRect();
+        
+        // Only handle touches on the right side of screen (not on joystick)
+        if (touch.clientX > rect.right) {
+          window.dispatchEvent(new CustomEvent('touch-aim', {
+            detail: {
+              x: touch.clientX,
+              y: touch.clientY
+            }
+          }));
+        }
+      }, { passive: true });
+
+
+      // Enhanced touch controls for full screen when controls are hidden
+      document.addEventListener('touchstart', (e) => {
+        const touch = e.changedTouches[0];
+        const rect = joystickZone.getBoundingClientRect();
+        
+        // If controls are hidden, use full screen touch controls
+        if (mobileControls.style.display === 'none') {
+          const centerX = window.innerWidth / 2;
+          
+          if (touch.clientX < centerX) {
+            // Left half: movement
+            isJoystickActive = true;
+            joystickCenterX = touch.clientX;
+            joystickCenterY = touch.clientY;
+            updateJoystickPosition(touch);
+          } else {
+            // Right half: aiming
+            window.dispatchEvent(new CustomEvent('touch-aim', {
+              detail: {
+                x: touch.clientX,
+                y: touch.clientY
+              }
+            }));
+          }
+        } else {
+          // Normal controls: only handle touches on the right side (not on joystick)
+          if (touch.clientX > rect.right) {
+            window.dispatchEvent(new CustomEvent('touch-aim', {
+              detail: {
+                x: touch.clientX,
+                y: touch.clientY
+              }
+            }));
+          }
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        const touch = e.changedTouches[0];
+        const rect = joystickZone.getBoundingClientRect();
+        
+        // If controls are hidden, use full screen touch controls
+        if (mobileControls.style.display === 'none') {
+          const centerX = window.innerWidth / 2;
+          
+          if (touch.clientX < centerX) {
+            // Left half: movement
+            if (isJoystickActive) {
+              updateJoystickPosition(touch);
+            }
+          } else {
+            // Right half: aiming
+            window.dispatchEvent(new CustomEvent('touch-aim', {
+              detail: {
+                x: touch.clientX,
+                y: touch.clientY
+              }
+            }));
+          }
+        } else {
+          // Normal controls: only handle touches on the right side (not on joystick)
+          if (touch.clientX > rect.right) {
+            window.dispatchEvent(new CustomEvent('touch-aim', {
+              detail: {
+                x: touch.clientX,
+                y: touch.clientY
+              }
+            }));
+          }
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchend', (e) => {
+        const touch = e.changedTouches[0];
+        const rect = joystickZone.getBoundingClientRect();
+        
+        // If controls are hidden, handle movement stop
+        if (mobileControls.style.display === 'none') {
+          const centerX = window.innerWidth / 2;
+          
+          if (touch.clientX < centerX) {
+            // Left half: stop movement
+            isJoystickActive = false;
+            resetJoystick();
+            window.dispatchEvent(new CustomEvent('joystick-move', { 
+              detail: { x: 0, y: 0, active: false } 
+            }));
+          }
+        } else {
+          // Normal controls: handle joystick stop
+          if (e.changedTouches[0].identifier === touchId) {
+            isJoystickActive = false;
+            touchId = null;
+            resetJoystick();
+            window.dispatchEvent(new CustomEvent('joystick-move', { 
+              detail: { x: 0, y: 0, active: false } 
+            }));
+          }
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchcancel', (e) => {
+        const touch = e.changedTouches[0];
+        const rect = joystickZone.getBoundingClientRect();
+        
+        // If controls are hidden, handle movement cancel
+        if (mobileControls.style.display === 'none') {
+          isJoystickActive = false;
+          resetJoystick();
+          window.dispatchEvent(new CustomEvent('joystick-move', { 
+            detail: { x: 0, y: 0, active: false } 
+          }));
+        } else {
+          // Normal controls: handle joystick cancel
+          if (e.changedTouches[0].identifier === touchId) {
+            isJoystickActive = false;
+            touchId = null;
+            resetJoystick();
+            window.dispatchEvent(new CustomEvent('joystick-move', { 
+              detail: { x: 0, y: 0, active: false } 
+            }));
+          }
+        }
+      }, { passive: false });
+    </script>
 
   </body>
 </html>
