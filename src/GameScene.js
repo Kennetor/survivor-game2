@@ -22,11 +22,26 @@ class GameScene extends Phaser.Scene {
         // Load regular enemy sprite sheets
         this.load.spritesheet('enemy-walk', 'enemy.walk.png', { frameWidth: 128, frameHeight: 128 });
         this.load.spritesheet('enemy-attack', 'attack.png', { frameWidth: 128, frameHeight: 128 });
+        
+        // Load Vampire blood bullet spritesheet
+        this.load.spritesheet('blood-bullet', 'BloodBullet1.png', {
+            frameWidth: 128,
+            frameHeight: 256
+        });
     }
 
     create() {
         // Reset upgrade cards to ensure consistent state
         this.resetUpgradeCards();
+        
+        // Only reset game state if this is a restart (not initial load)
+        // Check if we're restarting by seeing if the scene was previously active
+        if (this.scene.manager.scenes.length > 1) {
+            this.resetGameState();
+        } else {
+            // Initialize game state for initial load
+            this.initializeGameState();
+        }
         
         // Hide game over screen at start to prevent carryover between restarts
         const gameOverScreen = document.getElementById('game-over-screen');
@@ -44,6 +59,9 @@ class GameScene extends Phaser.Scene {
         
         // Set up spacebar pause toggle
         this.input.keyboard.on('keydown-SPACE', () => {
+            // Do nothing if upgrade screen is open or game over
+            if (document.getElementById('upgrade-screen').style.display === 'flex' || this.gameOverScreenOpen) return;
+
             if (this.upgradeScreenOpen) {
                 document.getElementById('pause-screen').style.display = 'none';
                 this.closeUpgradeScreen();
@@ -64,13 +82,12 @@ class GameScene extends Phaser.Scene {
         this.anims.create({ key: 'fast-run', frames: this.anims.generateFrameNumbers('fast-enemy-run', { start: 0, end: 6 }), frameRate: 10, repeat: -1 });
         this.anims.create({ key: 'fast-attack', frames: this.anims.generateFrameNumbers('fast-enemy-attack', { start: 0, end: 3 }), frameRate: 10, repeat: -1 });
         
-        // Debug logging for fast enemy frame data
-        console.log('fast-run frames:', this.textures.get('fast-enemy-run').frameTotal);
-        console.log('fast-attack frames:', this.textures.get('fast-enemy-attack').frameTotal);
-        
         // Create regular enemy animations
         this.anims.create({ key: 'enemy-walk', frames: this.anims.generateFrameNumbers('enemy-walk', { start: 0, end: 6 }), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'enemy-attack', frames: this.anims.generateFrameNumbers('enemy-attack', { start: 0, end: 4 }), frameRate: 8, repeat: -1 });
+        
+        // Create blood bullet animation
+        this.anims.create({ key: 'blood-bullet-fly', frames: this.anims.generateFrameNumbers('blood-bullet', { start: 0, end: 59 }), frameRate: 30, repeat: -1 });
         
         // Create ground using Graphics API (infinite world)
         this.groundGraphics = this.add.graphics();
@@ -87,7 +104,6 @@ class GameScene extends Phaser.Scene {
         this.player.setScale(2);
         this.player.setCollideWorldBounds(false);
         this.player.play('walk-down');
-        console.log('player created at', this.player.x, this.player.y);
 
         // Create arrays for enemies, bullets, and orbs (plain arrays, no physics groups)
         this.enemies = [];
@@ -102,10 +118,28 @@ class GameScene extends Phaser.Scene {
             S: Phaser.Input.Keyboard.KeyCodes.S,
             D: Phaser.Input.Keyboard.KeyCodes.D
         });
+        
+        // Aim mode toggle (desktop only)
+        this.aimMode = 'cursor'; // 'auto' or 'cursor'
+        this.aimModeDisplay = document.getElementById('aim-mode-display');
+        
+        // Update aim mode display visibility (desktop only)
+        if (!this.isMobile && this.aimModeDisplay) {
+            this.aimModeDisplay.style.display = 'block';
+            this.updateAimModeDisplay();
+        }
+        
+        // Set up T key for aim mode toggle (desktop only)
+        if (!this.isMobile) {
+            this.input.keyboard.on('keydown-T', () => {
+                this.toggleAimMode();
+            });
+        }
 
         // Game state
         this.xp = 0;
         this.level = 1;
+        this.wave = 1; // Add wave counter
         this.xpForNextLevel = 30; // First level up requires 30 XP
         this.playerHealth = 100;
         this.maxHealth = 100;
@@ -119,6 +153,23 @@ class GameScene extends Phaser.Scene {
         this.timeTimer = null; // Timer for survival time
         this.upgradeScreenOpen = false; // Boolean flag for upgrade screen state
         
+        // Mobile controls
+        this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        this.joystickInput = { x: 0, y: 0, active: false };
+        this.touchAimX = this.player.x;
+        this.touchAimY = this.player.y;
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.touchVelocityX = 0;
+        this.touchVelocityY = 0;
+        this.floatingControls = false;
+        this.controlsHidden = false;
+        
+        // Run stats
+        this.enemiesKilled = 0;
+        this.damageDealt = 0;
+        this.damageTaken = 0;
+        
         // Upgrade stats
         this.bulletSpeed = 400;
         this.playerSpeed = 200;
@@ -128,7 +179,7 @@ class GameScene extends Phaser.Scene {
         // New upgrade stats
         this.piercePower = 0;
         this.multishotLevel = 0;
-        this.hasVampire = false;
+        this.vampireLevel = 0; // 0 = none, 1 = 2 HP, 2 = 4 HP, 3 = 6 HP
         this.shotCount = 0;
         this.spreadAngle = 15;
         this.thornsDamage = 0;
@@ -194,37 +245,215 @@ class GameScene extends Phaser.Scene {
 
         // Collisions
         this.physics.add.overlap(this.player, this.enemies, this.hitPlayer, null, this);
+        
+        // Mobile controls event listeners
+        if (this.isMobile) {
+            window.addEventListener('joystick-move', (e) => {
+                this.joystickInput = e.detail;
+            });
+            
+            window.addEventListener('touch-aim', (e) => {
+                this.touchAimX = e.detail.x;
+                this.touchAimY = e.detail.y;
+            });
+
+            // Touch state
+            this.touchStartX = 0;
+            this.touchStartY = 0;
+            this.touchVelocityX = 0;
+            this.touchVelocityY = 0;
+            this.floatingControls = false;
+            this.controlsHidden = false;
+
+            document.addEventListener('touchstart', (e) => {
+              // Ignore touches on UI elements
+              const ignored = ['mobile-menu-btn', 'mobile-menu', 'upgrade-screen', 'game-over-screen', 'pause-screen'];
+              if (ignored.some(id => e.target.closest('#' + id))) return;
+              if (this.upgradeScreenOpen && !document.getElementById('mobile-menu').style.display === 'flex') return;
+
+              if (this.floatingControls || this.controlsHidden) {
+                this.touchStartX = e.touches[0].clientX;
+                this.touchStartY = e.touches[0].clientY;
+                
+                // Show floating joystick when floating controls are active
+                if (this.floatingControls) {
+                  const floatJoystick = document.getElementById('float-joystick');
+                  const floatKnob = document.getElementById('float-knob');
+                  
+                  // Position floating joystick at touch location
+                  floatJoystick.style.display = 'block';
+                  floatJoystick.style.left = `${this.touchStartX}px`;
+                  floatJoystick.style.top = `${this.touchStartY}px`;
+                  
+                  // Reset knob to center
+                  floatKnob.style.transform = 'translate(0px, 0px)';
+                }
+              }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+              const ignored = ['mobile-menu-btn', 'mobile-menu', 'upgrade-screen', 'game-over-screen'];
+              if (ignored.some(id => e.target.closest('#' + id))) return;
+
+              if ((this.floatingControls || this.controlsHidden) && !this.upgradeScreenOpen) {
+                const dx = e.touches[0].clientX - this.touchStartX;
+                const dy = e.touches[0].clientY - this.touchStartY;
+                const len = Math.sqrt(dx*dx + dy*dy);
+                if (len > 8) {
+                  this.touchVelocityX = (dx / len) * this.playerSpeed;
+                  this.touchVelocityY = (dy / len) * this.playerSpeed;
+                  
+                  // Move floating joystick knob when floating controls are active
+                  if (this.floatingControls) {
+                    const floatKnob = document.getElementById('float-knob');
+                    const maxRadius = 25; // Max radius for knob movement
+                    let nx = dx;
+                    let ny = dy;
+                    
+                    // Clamp to max radius
+                    if (len > maxRadius) {
+                      const scale = maxRadius / len;
+                      nx = dx * scale;
+                      ny = dy * scale;
+                    }
+                    
+                    // Move knob relative to touch delta
+                    floatKnob.style.transform = `translate(${nx}px, ${ny}px)`;
+                  }
+                }
+              }
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+              this.touchVelocityX = 0;
+              this.touchVelocityY = 0;
+              
+              // Hide floating joystick when touch ends
+              if (this.floatingControls) {
+                const floatJoystick = document.getElementById('float-joystick');
+                const floatKnob = document.getElementById('float-knob');
+                
+                floatJoystick.style.display = 'none';
+                floatKnob.style.transform = 'translate(0px, 0px)';
+              }
+            });
+
+            // Mobile menu event listeners
+            document.getElementById('mobile-menu-btn').style.display = 'block';
+
+            document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+                this.openUpgradeScreen();
+                document.getElementById('upgrade-screen').style.display = 'none';
+                document.getElementById('mobile-menu').style.display = 'flex';
+            });
+
+            document.getElementById('mobile-resume').addEventListener('click', () => {
+                document.getElementById('mobile-menu').style.display = 'none';
+                this.closeUpgradeScreen();
+            });
+
+            document.getElementById('mobile-restart').addEventListener('click', () => {
+                document.getElementById('mobile-menu').style.display = 'none';
+                this.scene.restart();
+            });
+
+            document.getElementById('mobile-hide-controls').addEventListener('click', () => {
+                this.setControlMode(this.controlsHidden ? 'fixed' : 'hidden');
+                document.getElementById('mobile-menu').style.display = 'none';
+                this.closeUpgradeScreen();
+            });
+
+            document.getElementById('mobile-float-controls').addEventListener('click', () => {
+                this.setControlMode(this.floatingControls ? 'fixed' : 'float');
+                document.getElementById('mobile-menu').style.display = 'none';
+                this.closeUpgradeScreen();
+            });
+        }
+        
+        // Initialize control mode to fixed
+        this.setControlMode('fixed');
     }
 
     update() {
-        // Stop all game logic while upgrade screen is open
-        if (this.upgradeScreenOpen) return;
+        // Stop all game logic while upgrade screen is open or game over
+        if (this.upgradeScreenOpen || this.gameOverScreenOpen) return;
 
         // Player movement
         this.player.setVelocity(0);
 
-        if (this.cursors.left.isDown || this.wasd.A.isDown) {
-            this.player.setVelocityX(-this.playerSpeed);
-        } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-            this.player.setVelocityX(this.playerSpeed);
-        } else if (this.cursors.up.isDown || this.wasd.W.isDown) {
-            this.player.setVelocityY(-this.playerSpeed);
-        } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
-            this.player.setVelocityY(this.playerSpeed);
+        let isMoving = false;
+
+        if (this.isMobile && (this.joystickInput.active || this.touchVelocityX !== 0 || this.touchVelocityY !== 0)) {
+            // Use mobile joystick input or touch velocity
+            if (this.touchVelocityX !== 0 || this.touchVelocityY !== 0) {
+                this.player.setVelocityX(this.touchVelocityX);
+                this.player.setVelocityY(this.touchVelocityY);
+            } else {
+                this.player.setVelocityX(this.joystickInput.x * this.playerSpeed);
+                this.player.setVelocityY(this.joystickInput.y * this.playerSpeed);
+            }
+            isMoving = true;
+        } else {
+            // Use keyboard input for desktop
+            if (this.cursors.left.isDown || this.wasd.A.isDown) {
+                this.player.setVelocityX(-this.playerSpeed);
+            } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+                this.player.setVelocityX(this.playerSpeed);
+            } else if (this.cursors.up.isDown || this.wasd.W.isDown) {
+                this.player.setVelocityY(-this.playerSpeed);
+            } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+                this.player.setVelocityY(this.playerSpeed);
+            }
+            
+            // Check if any keyboard keys are pressed
+            isMoving = this.cursors.left.isDown || this.cursors.right.isDown ||
+                       this.cursors.up.isDown || this.cursors.down.isDown ||
+                       this.wasd.A.isDown || this.wasd.D.isDown ||
+                       this.wasd.W.isDown || this.wasd.S.isDown;
         }
 
-        // Animation based on movement and mouse cursor direction
-        const isMoving = this.cursors.left.isDown || this.cursors.right.isDown ||
-                         this.cursors.up.isDown || this.cursors.down.isDown ||
-                         this.wasd.A.isDown || this.wasd.D.isDown ||
-                         this.wasd.W.isDown || this.wasd.S.isDown;
+        let angleToTarget;
+        
+        if (this.isMobile && this.enemies.length > 0) {
+            // Find nearest enemy for facing direction on mobile
+            let nearestEnemy = null;
+            let minDistance = Infinity;
 
-        const pointer = this.input.activePointer;
-        const angleToMouse = Phaser.Math.Angle.Between(
-            this.player.x, this.player.y,
-            pointer.worldX, pointer.worldY
-        );
-        const deg = Phaser.Math.RadToDeg(angleToMouse);
+            this.enemies.forEach(enemy => {
+                const distance = Phaser.Math.Distance.Between(
+                    this.player.x, this.player.y,
+                    enemy.x, enemy.y
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestEnemy = enemy;
+                }
+            });
+
+            if (nearestEnemy) {
+                angleToTarget = Phaser.Math.Angle.Between(
+                    this.player.x, this.player.y,
+                    nearestEnemy.x, nearestEnemy.y
+                );
+            } else {
+                // No enemies, use mouse position as fallback
+                const pointer = this.input.activePointer;
+                angleToTarget = Phaser.Math.Angle.Between(
+                    this.player.x, this.player.y,
+                    pointer.worldX, pointer.worldY
+                );
+            }
+        } else {
+            // Desktop behavior: use mouse cursor
+            const pointer = this.input.activePointer;
+            angleToTarget = Phaser.Math.Angle.Between(
+                this.player.x, this.player.y,
+                pointer.worldX, pointer.worldY
+            );
+        }
+        
+        const deg = Phaser.Math.RadToDeg(angleToTarget);
 
         let facing;
         if (deg > -45 && deg <= 45) facing = 'walk-right';
@@ -255,7 +484,9 @@ class GameScene extends Phaser.Scene {
                 // Thorns damage
                 if (this.thornsDamage > 0) {
                     enemy.health -= this.thornsDamage;
+                    this.damageDealt += this.thornsDamage; // Increment damage dealt by thorns
                     if (enemy.health <= 0) {
+                        this.enemiesKilled++; // Increment enemies killed by thorns
                         if (this.hasVampire) {
                             this.playerHealth = Math.min(this.maxHealth, this.playerHealth + 2);
                             this.updateUI();
@@ -291,8 +522,10 @@ class GameScene extends Phaser.Scene {
                     if (enemy.health !== undefined) {
                         // Enemy has health (regular enemy)
                         enemy.health -= 1; // Each bullet deals 1 damage
+                        this.damageDealt += 1; // Increment damage dealt
                         if (enemy.health <= 0) {
                             // Enemy dies
+                            this.enemiesKilled++;
                             this.spawnXPOrb(enemy.x, enemy.y);
                             this.enemyDamageCooldowns.delete(enemy); // Clean up cooldown map
                             this.enemyKnockbackTime.delete(enemy); // Clean up knockback map
@@ -300,13 +533,16 @@ class GameScene extends Phaser.Scene {
                             enemy.destroy();
                             
                             // Vampire heal
-                            if (this.hasVampire) {
-                                this.playerHealth = Math.min(this.maxHealth, this.playerHealth + 2);
+                            if (this.vampireLevel > 0) {
+                                const healAmount = this.vampireLevel * 2; // Level 1 = 2 HP, Level 2 = 4 HP, Level 3 = 6 HP
+                                this.playerHealth = Math.min(this.maxHealth, this.playerHealth + healAmount);
                                 this.updateUI();
                             }
                         }
                     } else {
                         // Fast enemy (no health property, dies in 1 hit)
+                        this.enemiesKilled++;
+                        this.damageDealt += 1; // Increment damage dealt
                         this.spawnXPOrb(enemy.x, enemy.y);
                         this.enemyDamageCooldowns.delete(enemy); // Clean up cooldown map
                         this.enemyKnockbackTime.delete(enemy); // Clean up knockback map
@@ -314,8 +550,9 @@ class GameScene extends Phaser.Scene {
                         enemy.destroy();
                         
                         // Vampire heal
-                        if (this.hasVampire) {
-                            this.playerHealth = Math.min(this.maxHealth, this.playerHealth + 2);
+                        if (this.vampireLevel > 0) {
+                            const healAmount = this.vampireLevel * 2; // Level 1 = 2 HP, Level 2 = 4 HP, Level 3 = 6 HP
+                            this.playerHealth = Math.min(this.maxHealth, this.playerHealth + healAmount);
                             this.updateUI();
                         }
                     }
@@ -454,10 +691,10 @@ class GameScene extends Phaser.Scene {
                     break;
             }
 
-            // Determine enemy type based on level
+            // Determine enemy type based on survival time
             let enemyType = 'normal';
-            if (this.level >= 5) {
-                // Mix in fast small enemies starting from wave 5
+            if (this.survivalTime >= 90) {
+                // Mix in fast small enemies starting at 90 seconds (1:30)
                 enemyType = Phaser.Math.Between(0, 3) === 0 ? 'fast' : 'normal'; // 25% chance for fast enemy
             }
 
@@ -489,19 +726,73 @@ class GameScene extends Phaser.Scene {
     autoAttack() {
         if (this.isUpgrading) return;
         
-        // Get mouse cursor position in world coordinates
-        const pointer = this.input.activePointer;
-        const mouseX = pointer.worldX;
-        const mouseY = pointer.worldY;
-        
-        // Calculate angle from player to mouse
-        const angleRad = Phaser.Math.Angle.Between(this.player.x, this.player.y, mouseX, mouseY);
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        let targetX, targetY;
+
+        if (isMobile && this.enemies.length > 0) {
+          // Find nearest valid enemy
+          let nearest = null;
+          let nearestDist = Infinity;
+          this.enemies.forEach(e => {
+            if (!e || !e.active) return;
+            const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+            if (d < nearestDist) {
+              nearestDist = d;
+              nearest = e;
+            }
+          });
+          if (nearest) {
+            targetX = nearest.x;
+            targetY = nearest.y;
+          } else {
+            return; // no valid target, don't fire
+          }
+        } else if (!isMobile) {
+          // Desktop: use aim mode logic
+          if (this.aimMode === 'auto' && this.enemies.length > 0) {
+            // Auto aim: find nearest enemy
+            let nearest = null;
+            let nearestDist = Infinity;
+            this.enemies.forEach(e => {
+              if (!e || !e.active) return;
+              const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+              if (d < nearestDist) {
+                nearestDist = d;
+                nearest = e;
+              }
+            });
+            if (nearest) {
+              targetX = nearest.x;
+              targetY = nearest.y;
+            } else {
+              return; // no valid target, don't fire
+            }
+          } else {
+            // Cursor aim: use mouse position
+            const pointer = this.input.activePointer;
+            targetX = pointer.worldX;
+            targetY = pointer.worldY;
+          }
+        } else {
+          return; // mobile but no enemies
+        }
+
+        const angleRad = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
         const angleDeg = Phaser.Math.RadToDeg(angleRad);
-        
-        // Create main bullet
-        const bullet = this.add.circle(this.player.x, this.player.y, this.bulletRadius, 0xffffff);
-        this.physics.add.existing(bullet);
-        this.physics.velocityFromAngle(angleDeg, this.bulletSpeed, bullet.body.velocity);
+
+        // Apply spread
+        const spread = this.spreadAngle * (Math.random() - 0.5);
+        const finalAngle = angleDeg + spread;
+
+        // Create main bullet using blood bullet animated sprite
+        const bullet = this.physics.add.sprite(this.player.x, this.player.y, 'blood-bullet');
+        bullet.setScale(0.3); // Scale down the bullet to be clearly visible
+        bullet.play('blood-bullet-fly');
+        bullet.setBlendMode(Phaser.BlendModes.ADD); // Make black background invisible
+        this.physics.velocityFromAngle(finalAngle, this.bulletSpeed, bullet.body.velocity);
+        // Rotate bullet to face direction of travel (offset by 90 degrees for vertical sprite)
+        bullet.rotation = angleRad + Math.PI / 2;
         this.bullets.push(bullet);
         
         // Multishot logic
@@ -522,18 +813,24 @@ class GameScene extends Phaser.Scene {
             }
             
             if (shouldFireBonus) {
-                // Create spread bullets using spreadAngle
-                const spreadAngle1 = angleDeg + this.spreadAngle;
-                const spreadAngle2 = angleDeg - this.spreadAngle;
+                // Create spread bullets using blood bullet sprite
+                const spreadAngle1 = finalAngle + this.spreadAngle;
+                const spreadAngle2 = finalAngle - this.spreadAngle;
                 
-                const bullet1 = this.add.circle(this.player.x, this.player.y, this.bulletRadius, 0xffffff);
-                this.physics.add.existing(bullet1);
+                const bullet1 = this.physics.add.sprite(this.player.x, this.player.y, 'blood-bullet');
+                bullet1.setScale(0.3); // Scale down to be clearly visible
+                bullet1.play('blood-bullet-fly');
+                bullet1.setBlendMode(Phaser.BlendModes.ADD); // Make black background invisible
                 this.physics.velocityFromAngle(spreadAngle1, this.bulletSpeed, bullet1.body.velocity);
+                bullet1.rotation = Phaser.Math.DegToRad(spreadAngle1) + Math.PI / 2; // Offset by 90 degrees for vertical sprite
                 this.bullets.push(bullet1);
                 
-                const bullet2 = this.add.circle(this.player.x, this.player.y, this.bulletRadius, 0xffffff);
-                this.physics.add.existing(bullet2);
+                const bullet2 = this.physics.add.sprite(this.player.x, this.player.y, 'blood-bullet');
+                bullet2.setScale(0.3); // Scale down to be clearly visible
+                bullet2.play('blood-bullet-fly');
+                bullet2.setBlendMode(Phaser.BlendModes.ADD); // Make black background invisible
                 this.physics.velocityFromAngle(spreadAngle2, this.bulletSpeed, bullet2.body.velocity);
+                bullet2.rotation = Phaser.Math.DegToRad(spreadAngle2) + Math.PI / 2; // Offset by 90 degrees for vertical sprite
                 this.bullets.push(bullet2);
             }
         }
@@ -559,6 +856,7 @@ class GameScene extends Phaser.Scene {
 
     levelUp() {
         this.level++;
+        this.wave++; // Increment wave counter
         this.xp -= this.xpForNextLevel;
         this.xpForNextLevel = 30 + (this.level - 1) * 50; // Balance: 30 + (level-1) * 50 XP
         
@@ -616,9 +914,20 @@ class GameScene extends Phaser.Scene {
         if (!this.hasMagnet) available.push('orb-magnet');
         if (this.hasMagnet) available.push('stronger-magnet');
 
-        // Hide vampire card if already selected
-        if (this.hasVampire) {
+        // Hide vampire card if maxed out (level 3)
+        if (this.vampireLevel >= 3) {
             document.querySelector('[data-upgrade="vampire"]').style.display = 'none';
+        } else {
+            // Update vampire card description to show next level's heal amount
+            const vampireCard = document.querySelector('[data-upgrade="vampire"]');
+            if (vampireCard) {
+                const nextLevel = this.vampireLevel + 1;
+                const healAmount = nextLevel * 2;
+                vampireCard.innerHTML = `
+                    <h3>Vampire</h3>
+                    <p>Killing an enemy heals ${healAmount} HP</p>
+                `;
+            }
         }
 
         // Show multishot only if multishotLevel < 3
@@ -647,8 +956,8 @@ class GameScene extends Phaser.Scene {
             document.querySelector('[data-upgrade="bigger-bullets"]').style.display = 'none';
         }
 
-        // Shuffle and pick 4
-        const shuffled = available.sort(() => Math.random() - 0.5).slice(0, 4);
+        // Shuffle and pick 3
+        const shuffled = available.sort(() => Math.random() - 0.5).slice(0, 3);
 
         // Show only selected cards
         document.querySelectorAll('.upgrade-card').forEach(card => {
@@ -668,9 +977,12 @@ class GameScene extends Phaser.Scene {
                 this.multishotLevel++;
                 break;
             case 'vampire':
+                this.vampireLevel++;
                 this.hasVampire = true;
-                // Hide vampire card after selection (one-time upgrade)
-                document.querySelector('[data-upgrade="vampire"]').style.display = 'none';
+                // Hide vampire card if maxed out (level 3)
+                if (this.vampireLevel >= 3) {
+                    document.querySelector('[data-upgrade="vampire"]').style.display = 'none';
+                }
                 break;
             case 'faster-fire-rate':
                 this.fireRate = Math.max(200, this.fireRate - 200);
@@ -747,6 +1059,7 @@ class GameScene extends Phaser.Scene {
         if (this.playerHealth <= 0) return;
         // Deal damage
         this.playerHealth -= amount;
+        this.damageTaken += amount; // Increment damage taken
         if (this.playerHealth <= 0) {
             this.playerHealth = 0;
             this.gameOver();
@@ -764,6 +1077,27 @@ class GameScene extends Phaser.Scene {
     resetUpgradeCards() {
         document.querySelector('[data-upgrade="orb-magnet"]').style.display = 'block';
         document.querySelector('[data-upgrade="stronger-magnet"]').style.display = 'none';
+    }
+    
+    toggleAimMode() {
+        if (this.isMobile) return; // Only toggle on desktop
+        
+        this.aimMode = this.aimMode === 'auto' ? 'cursor' : 'auto';
+        this.updateAimModeDisplay();
+        
+        // Flash the display briefly to show the change
+        if (this.aimModeDisplay) {
+            this.aimModeDisplay.style.opacity = '1';
+            setTimeout(() => {
+                this.aimModeDisplay.style.opacity = '0.6';
+            }, 200);
+        }
+    }
+    
+    updateAimModeDisplay() {
+        if (this.aimModeDisplay) {
+            this.aimModeDisplay.textContent = `AIM: ${this.aimMode.toUpperCase()}`;
+        }
     }
 
     startSurvivalTimer() {
@@ -802,21 +1136,105 @@ class GameScene extends Phaser.Scene {
     gameOver() {
         try {
             this.upgradeScreenOpen = false;
-            this.spawnTimer.paused = true;
-            this.shootTimer.paused = true;
+            this.gameOverScreenOpen = true; // Set game over flag to block input
+            // More aggressively stop spawning - use remove() instead of paused
+            if (this.spawnTimer) {
+                this.spawnTimer.remove();
+            }
+            // Completely stop shooting timer instead of just pausing
+            if (this.shootTimer) {
+                this.shootTimer.remove();
+            }
             this.timeTimer.paused = true;
             this.player.body.moves = false;
             this.enemies.forEach(e => { if (e && e.body) e.body.moves = false; });
-            const minutes = Math.floor(this.survivalTime / 60);
-            const seconds = this.survivalTime % 60;
-            document.getElementById('game-over-time').textContent = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
-            document.getElementById('game-over-screen').style.display = 'flex';
             
-            // Add restart button click listener
-            document.getElementById('restart-button').addEventListener('click', () => {
-                document.getElementById('game-over-screen').style.display = 'none';
-                this.scene.restart();
-            }, { once: true });
+            // Destroy player to hide it during game over
+            if (this.player && this.player.active) {
+                try {
+                    this.player.destroy();
+                } catch (err) {
+                    console.log('Error destroying player:', err);
+                }
+            }
+            
+            // Destroy enemies completely to stop animations (fallback solution)
+            this.enemies.forEach((enemy, index) => {
+                if (enemy && enemy.active) {
+                    try {
+                        enemy.destroy();
+                    } catch (err) {
+                        console.log(`Error destroying enemy ${index}:`, err);
+                    }
+                }
+            });
+            // Clear the enemies array after destroying
+            this.enemies = [];
+            
+            // Add null guards for DOM elements
+            const gameOverTime = document.getElementById('game-over-time');
+            if (gameOverTime) {
+                const minutes = Math.floor(this.survivalTime / 60);
+                const seconds = this.survivalTime % 60;
+                gameOverTime.textContent = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Populate stats with null guards
+            const statKills = document.getElementById('stat-kills');
+            if (statKills) {
+                statKills.textContent = this.enemiesKilled;
+            }
+            
+            const statDamageDealt = document.getElementById('stat-damage-dealt');
+            if (statDamageDealt) {
+                statDamageDealt.textContent = this.damageDealt;
+            }
+            
+            const statDamageTaken = document.getElementById('stat-damage-taken');
+            if (statDamageTaken) {
+                statDamageTaken.textContent = this.damageTaken;
+            }
+            
+            const statLevel = document.getElementById('stat-level');
+            if (statLevel) {
+                statLevel.textContent = this.level;
+            }
+            
+            const statWave = document.getElementById('stat-wave');
+            if (statWave) {
+                statWave.textContent = this.wave;
+            }
+            
+            const gameOverScreen = document.getElementById('game-over-screen');
+            if (gameOverScreen) {
+                gameOverScreen.style.display = 'flex';
+            }
+            
+            // Add restart button click listener with null guard
+            const restartButton = document.getElementById('restart-button');
+            if (restartButton) {
+                restartButton.addEventListener('click', () => {
+                    if (gameOverScreen) {
+                        gameOverScreen.style.display = 'none';
+                    }
+                    // Reset mobile controls state before restarting
+                    this.floatingControls = false;
+                    this.controlsHidden = false;
+                    this.joystickInput = { x: 0, y: 0, active: false };
+                    this.touchVelocityX = 0;
+                    this.touchVelocityY = 0;
+                    this.touchAimX = 0;
+                    this.touchAimY = 0;
+                    
+                    // Hide floating joystick if visible
+                    const floatJoystick = document.getElementById('float-joystick');
+                    if (floatJoystick) {
+                        floatJoystick.style.display = 'none';
+                    }
+                    
+                    this.scene.restart();
+                }, { once: true });
+            }
         } catch(err) {
             console.error('gameOver error:', err);
         }
@@ -848,6 +1266,164 @@ class GameScene extends Phaser.Scene {
                 this.scene.restart();
             }, { once: true });
         }
+    }
+
+    setControlMode(mode) {
+        const joystick = document.getElementById('joystick-zone');
+        const floatJoystick = document.getElementById('float-joystick');
+        const hideBtn = document.getElementById('mobile-hide-controls');
+        const floatBtn = document.getElementById('mobile-float-controls');
+
+        // Reset all states
+        this.floatingControls = false;
+        this.controlsHidden = false;
+        joystick.style.display = 'none';
+        floatJoystick.style.display = 'none';
+
+        if (mode === 'fixed') {
+            joystick.style.display = 'block';
+            hideBtn.textContent = 'Hide Controls';
+            floatBtn.textContent = 'Float Controls';
+        } else if (mode === 'float') {
+            this.floatingControls = true;
+            hideBtn.textContent = 'Hide Controls';
+            floatBtn.textContent = 'Fixed Controls';
+        } else if (mode === 'hidden') {
+            this.controlsHidden = true;
+            hideBtn.textContent = 'Show Controls';
+            floatBtn.textContent = 'Float Controls';
+        }
+    }
+    
+    initializeGameState() {
+        // Initialize game state variables for initial load
+        this.xp = 0;
+        this.level = 1;
+        this.wave = 1;
+        this.xpForNextLevel = 30;
+        this.playerHealth = 100;
+        this.maxHealth = 100;
+        this.isPlayerInvincible = false;
+        this.isUpgrading = false;
+        this.hasMagnet = false;
+        this.magnetSpeed = 150;
+        this.enemyDamageCooldowns = new Map();
+        this.enemyKnockbackTime = new Map();
+        this.survivalTime = 0;
+        this.timeTimer = null;
+        this.upgradeScreenOpen = false;
+        this.gameOverScreenOpen = false;
+        
+        // Initialize mobile controls
+        this.floatingControls = false;
+        this.controlsHidden = false;
+        this.joystickInput = { x: 0, y: 0, active: false };
+        this.touchAimX = 0;
+        this.touchAimY = 0;
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.touchVelocityX = 0;
+        this.touchVelocityY = 0;
+        
+        // Initialize run stats
+        this.enemiesKilled = 0;
+        this.damageDealt = 0;
+        this.damageTaken = 0;
+        
+        // Initialize upgrade stats to default values
+        this.bulletSpeed = 400;
+        this.playerSpeed = 200;
+        this.fireRate = 1000;
+        this.enemyHP = 1;
+        
+        // Initialize new upgrade stats
+        this.piercePower = 0;
+        this.multishotLevel = 0;
+        this.hasVampire = false;
+        this.shotCount = 0;
+        this.spreadAngle = 15;
+        this.thornsDamage = 0;
+        this.bulletRadius = 5;
+        
+        // Initialize arrays
+        this.enemies = [];
+        this.bullets = [];
+        this.orbs = [];
+        
+        // Initialize timers
+        this.spawnTimer = null;
+        this.shootTimer = null;
+        this.timeTimer = null;
+    }
+    
+    resetGameState() {
+        // Reset all game state variables to their initial values
+        this.xp = 0;
+        this.level = 1;
+        this.wave = 1;
+        this.xpForNextLevel = 30;
+        this.playerHealth = 100;
+        this.maxHealth = 100;
+        this.isPlayerInvincible = false;
+        this.isUpgrading = false;
+        this.hasMagnet = false;
+        this.magnetSpeed = 150;
+        this.enemyDamageCooldowns = new Map();
+        this.enemyKnockbackTime = new Map();
+        this.survivalTime = 0;
+        this.timeTimer = null;
+        this.upgradeScreenOpen = false;
+        this.gameOverScreenOpen = false;
+        
+        // Reset mobile controls
+        this.floatingControls = false;
+        this.controlsHidden = false;
+        this.joystickInput = { x: 0, y: 0, active: false };
+        this.touchAimX = 0;
+        this.touchAimY = 0;
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+        this.touchVelocityX = 0;
+        this.touchVelocityY = 0;
+        
+        // Reset run stats
+        this.enemiesKilled = 0;
+        this.damageDealt = 0;
+        this.damageTaken = 0;
+        
+        // Reset upgrade stats to default values
+        this.bulletSpeed = 400;
+        this.playerSpeed = 200;
+        this.fireRate = 1000;
+        this.enemyHP = 1;
+        
+        // Reset new upgrade stats
+        this.piercePower = 0;
+        this.multishotLevel = 0;
+        this.hasVampire = false;
+        this.shotCount = 0;
+        this.spreadAngle = 15;
+        this.thornsDamage = 0;
+        this.bulletRadius = 5;
+        
+        // Clear arrays
+        this.enemies = [];
+        this.bullets = [];
+        this.orbs = [];
+        
+        // Reset timers
+        if (this.spawnTimer) {
+            this.spawnTimer.remove();
+        }
+        if (this.shootTimer) {
+            this.shootTimer.remove();
+        }
+        if (this.timeTimer) {
+            this.timeTimer.remove();
+        }
+        
+        // Update UI to reflect reset state (especially health bar)
+        this.updateUI();
     }
 
 }

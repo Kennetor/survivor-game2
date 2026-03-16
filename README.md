@@ -8,30 +8,43 @@ A browser-based top-down auto-shooter inspired by Vampire Survivors. Fight off e
 
 ## How to Play
 
+### Desktop
 - **WASD** — Move
-- **Mouse cursor** — Aim
-- **Auto-attack** — Your character shoots automatically toward the cursor
+- **Mouse cursor** — Aim (cursor aim by default)
+- **T** — Toggle between cursor aim and auto aim
+- **Auto-attack** — Your character shoots automatically
 - **Space** — Pause
+
+### Mobile
+- **Virtual joystick** — Move
+- **Auto-aim** — Automatically shoots toward the nearest enemy
+- **Menu button** — Pause and settings
+
+---
 
 ## Upgrades
 
-Level up by collecting XP orbs dropped by enemies. Choose from upgrades including:
+Level up by collecting XP orbs dropped by enemies. Each level-up presents 3 random upgrades to choose from.
 
 - 🔫 **Faster Fire Rate** — Shoot more often
 - 💥 **Pierce** — Bullets pass through multiple enemies
 - 🔱 **Multishot / Wider Spread** — Fire extra bullets in a spread
 - 🧄 **Orb Magnet** — XP orbs fly toward you
 - 🧲 **Stronger Magnet** — Orbs fly faster
-- 🩸 **Vampire** — Killing enemies heals you
-- 🛡️ **Thorns** — Reflect damage to enemies that touch you
+- 🩸 **Vampire** *(3 tiers)* — Killing enemies heals you; more tiers heal more per kill
+- 🛡️ **Thorns** *(3 tiers)* — Reflect damage to enemies that touch you
 - ⚡ **More Speed** — Move faster
-- ❤️ **Extra HP** — Increase max health
+- ❤️ **Extra HP** — Increase max health and heal instantly
 - 🔵 **Bigger Bullets** — Larger bullets with bigger hit radius
+
+---
 
 ## Enemies
 
 - **Skeleton Warrior** — Slow but tough, switches to attack animation when close
-- **Armored Fighter** *(unlocks at 2.5 min)* — Faster and more aggressive
+- **Armored Fighter** *(unlocks at 1:30)* — Faster and more aggressive
+
+---
 
 ## Built With
 
