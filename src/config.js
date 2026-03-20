@@ -4,7 +4,7 @@ const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
     height: window.innerHeight,
-    backgroundColor: '#0d0d1a',
+backgroundColor: '#2a2a2a',
     pixelArt: true,
     physics: {
         default: 'arcade',
@@ -16,8 +16,8 @@ const config = {
     scene: [],
     parent: 'game-container',
     scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.NO_CENTER
     }
 };
 

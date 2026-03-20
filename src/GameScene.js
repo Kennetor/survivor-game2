@@ -28,11 +28,20 @@ class GameScene extends Phaser.Scene {
             frameWidth: 128,
             frameHeight: 256
         });
+        
+        // Load boss images
+        this.load.image('boss-south', 'lavawolf/south.png');
     }
 
     create() {
         // Reset upgrade cards to ensure consistent state
         this.resetUpgradeCards();
+        
+        // Reset boss HUD at start
+        const bossHud = document.getElementById('boss-hud');
+        if (bossHud) bossHud.style.display = 'none';
+        const bossHpBar = document.getElementById('boss-hp-bar');
+        if (bossHpBar) bossHpBar.style.width = '100%';
         
         // Only reset game state if this is a restart (not initial load)
         // Check if we're restarting by seeing if the scene was previously active
@@ -192,6 +201,7 @@ class GameScene extends Phaser.Scene {
             fill: '#fff'
         });
         this.levelText.setScrollFactor(0);
+        if (this.isMobile) this.levelText.setVisible(false);
         
         // XP bar background
         this.xpBarBg = this.add.rectangle(16, 60, 200, 10, 0x333333);
@@ -213,6 +223,11 @@ class GameScene extends Phaser.Scene {
         this.healthBarFill.setOrigin(0, 0);
         this.healthBarFill.setScrollFactor(0);
 
+        if (this.isMobile) {
+            this.healthBarBg.setVisible(false);
+            this.healthBarFill.setVisible(false);
+        }
+
         // Spawning - enable regular enemy spawner
         this.spawnTimer = this.time.addEvent({
             delay: 2000,
@@ -223,6 +238,48 @@ class GameScene extends Phaser.Scene {
         
         // Start survival timer
         this.startSurvivalTimer();
+        
+        // Initialize boss variables
+        this.boss = null;
+        this.bossActive = false;
+        this.bossHP = 50;
+        this.bossMaxHP = 50;
+        
+        // Spawn boss after 59 seconds with warning
+        this.time.delayedCall(59000, () => {
+            const camW = this.cameras.main.width;
+            const camH = this.cameras.main.height;
+
+            const bossWarning = document.createElement('div');
+            bossWarning.id = 'boss-warning';
+            bossWarning.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 0;
+                width: 100%;
+                text-align: center;
+                font-family: monospace;
+                font-size: 20px;
+                font-weight: bold;
+                color: #ff4400;
+                text-shadow: 0 0 8px #ff4400;
+                z-index: 101;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.4s;
+            `;
+            bossWarning.textContent = '⚠ THE BEAST APPROACHES ⚠';
+            document.body.appendChild(bossWarning);
+            setTimeout(() => bossWarning.style.opacity = '1', 50);
+
+            this.time.delayedCall(1000, () => {
+                this.spawnBoss();
+                this.time.delayedCall(1500, () => {
+                    bossWarning.style.opacity = '0';
+                    setTimeout(() => bossWarning.remove(), 500);
+                }, [], this);
+            }, [], this);
+        }, [], this);
         
         // Spawn 3 enemies immediately when scene starts
         this.time.delayedCall(0, () => {
@@ -241,7 +298,7 @@ class GameScene extends Phaser.Scene {
 
         // Camera
         this.cameras.main.startFollow(this.player);
-        this.cameras.main.setZoom(1.5);
+        this.cameras.main.setZoom(this.isMobile ? 0.8 : 1.5);
 
         // Collisions
         this.physics.add.overlap(this.player, this.enemies, this.hitPlayer, null, this);
@@ -445,12 +502,30 @@ class GameScene extends Phaser.Scene {
                 );
             }
         } else {
-            // Desktop behavior: use mouse cursor
-            const pointer = this.input.activePointer;
-            angleToTarget = Phaser.Math.Angle.Between(
-                this.player.x, this.player.y,
-                pointer.worldX, pointer.worldY
-            );
+            if (this.aimMode === 'auto' && this.enemies.length > 0) {
+                // Auto aim: face nearest enemy or boss
+                let nearestTarget = null;
+                let minDist = Infinity;
+                this.enemies.forEach(e => {
+                    if (!e || !e.active) return;
+                    const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+                    if (d < minDist) { minDist = d; nearestTarget = e; }
+                });
+                if (this.bossActive && this.boss && this.boss.active) {
+                    const bossDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
+                    if (bossDist < minDist) nearestTarget = this.boss;
+                }
+                if (nearestTarget) {
+                    angleToTarget = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearestTarget.x, nearestTarget.y);
+                } else {
+                    const pointer = this.input.activePointer;
+                    angleToTarget = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.worldX, pointer.worldY);
+                }
+            } else {
+                // Cursor aim: use mouse position
+                const pointer = this.input.activePointer;
+                angleToTarget = Phaser.Math.Angle.Between(this.player.x, this.player.y, pointer.worldX, pointer.worldY);
+            }
         }
         
         const deg = Phaser.Math.RadToDeg(angleToTarget);
@@ -644,16 +719,100 @@ class GameScene extends Phaser.Scene {
             }
             
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, orb.x, orb.y);
-            if (dist < 15) {
+            if (dist < 30) {
                 // Collect orb
                 orb.destroy();
                 this.orbs.splice(i, 1);
                 this.gainXP(10);
             }
         }
+        
+        // Boss logic
+        if (this.bossActive && this.boss && this.boss.active) {
+            // Update boss HP bar
+            if (this.bossHPBarBg && this.bossHPBarFill) {
+                const barX = this.boss.x;
+                const barY = this.boss.y - 40;
+                this.bossHPBarBg.setPosition(barX, barY);
+                const fillWidth = 60 * (this.bossHP / this.bossMaxHP);
+                this.bossHPBarFill.setPosition(barX - (60 - fillWidth) / 2, barY);
+                this.bossHPBarFill.setSize(fillWidth, 6);
+            }
+            
+            // Movement
+            const speed = 60;
+            this.physics.moveToObject(this.boss, this.player, speed);
+
+            // Direction sprite
+            const dx = this.player.x - this.boss.x;
+            const dy = this.player.y - this.boss.y;
+            this.boss.setFlipX(dx < 0);
+
+            // Bullet collision
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                if (!this.bullets[i] || !this.bullets[i].active) continue;
+                const dist = Phaser.Math.Distance.Between(
+                    this.bullets[i].x, this.bullets[i].y,
+                    this.boss.x, this.boss.y
+                );
+                if (dist < 60) {
+                    this.bossHP--;
+                    this.damageDealt++;
+                    this.bullets[i].destroy();
+                    this.bullets.splice(i, 1);
+                    
+                    // Update DOM boss HP bar
+                    const bossHpBar = document.getElementById('boss-hp-bar');
+                    if (bossHpBar) bossHpBar.style.width = (this.bossHP / this.bossMaxHP * 100) + '%';
+                    
+                    if (this.bossHP <= 0) {
+                        const bx = this.boss.x;
+                        const by = this.boss.y;
+                        this.boss.destroy();
+                        this.bossActive = false;
+                        this.enemiesKilled++;
+                        for (let o = 0; o < 5; o++) this.spawnXPOrb(bx, by);
+                        this.spawnTimer.paused = false;
+                        
+                        // Hide DOM boss HUD
+                        const bossHud = document.getElementById('boss-hud');
+                        if (bossHud) {
+                            bossHud.style.display = 'none';
+                            bossHud.style.padding = '0 12px';
+                        }
+                    }
+                    break;
+                }
+            }
+
+            // Player damage
+            const distToPlayer = Phaser.Math.Distance.Between(
+                this.boss.x, this.boss.y, this.player.x, this.player.y
+            );
+            if (distToPlayer < 40 && this.time.now - (this.bossLastHit || 0) > 1000) {
+                this.bossLastHit = this.time.now;
+                this.takeDamage(20);
+
+                // Lunge attack tween
+                this.tweens.add({
+                    targets: this.boss,
+                    scaleX: 0.5,
+                    scaleY: 0.5,
+                    duration: 80,
+                    yoyo: true,
+                    ease: 'Power2',
+                    onComplete: () => {
+                        if (this.boss && this.boss.active) {
+                            this.boss.setScale(0.4);
+                        }
+                    }
+                });
+            }
+        }
     }
 
     spawnEnemy() {
+        if (this.bossActive) return;
         // Spawn multiple enemies based on level
         const enemiesToSpawn = Math.floor(1 + this.level * 0.5);
         
@@ -724,24 +883,66 @@ class GameScene extends Phaser.Scene {
     }
 
     autoAttack() {
+        if (this.isMobile) {
+            const cam = this.cameras.main;
+            const inView = (obj) => obj && obj.active &&
+                obj.x >= cam.worldView.left && obj.x <= cam.worldView.right &&
+                obj.y >= cam.worldView.top && obj.y <= cam.worldView.bottom;
+            const anyVisible = this.enemies.some(inView) || (this.bossActive && inView(this.boss));
+            if (!anyVisible) return;
+        }
         if (this.isUpgrading) return;
+        
+        if (this.bossActive && this.boss && this.boss.active) {
+            if (this.isMobile) {
+                const cam = this.cameras.main;
+                const bossVisible = this.boss.x >= cam.worldView.left && this.boss.x <= cam.worldView.right &&
+                                    this.boss.y >= cam.worldView.top && this.boss.y <= cam.worldView.bottom;
+                if (!bossVisible) return;
+            }
+            const angleRad = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.boss.x, this.boss.y);
+            const angleDeg = Phaser.Math.RadToDeg(angleRad);
+            const bullet = this.physics.add.sprite(this.player.x, this.player.y, 'blood-bullet');
+            bullet.setScale(0.3);
+            bullet.play('blood-bullet-fly');
+            bullet.setBlendMode(Phaser.BlendModes.ADD);
+            this.physics.velocityFromAngle(angleDeg, this.bulletSpeed, bullet.body.velocity);
+            bullet.rotation = angleRad + Math.PI / 2;
+            this.bullets.push(bullet);
+            return;
+        }
         
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
         let targetX, targetY;
 
         if (isMobile && this.enemies.length > 0) {
-          // Find nearest valid enemy
+          // Find nearest VISIBLE enemy only
+          const cam = this.cameras.main;
           let nearest = null;
           let nearestDist = Infinity;
           this.enemies.forEach(e => {
             if (!e || !e.active) return;
+            if (e.x < cam.worldView.left || e.x > cam.worldView.right ||
+                e.y < cam.worldView.top || e.y > cam.worldView.bottom) return;
             const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
             if (d < nearestDist) {
               nearestDist = d;
               nearest = e;
             }
           });
+          
+          if (this.bossActive && this.boss && this.boss.active) {
+            const bossDist = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y,
+                this.boss.x, this.boss.y
+            );
+            if (bossDist < nearestDist) {
+                nearestDist = bossDist;
+                nearest = this.boss;
+            }
+          }
+          
           if (nearest) {
             targetX = nearest.x;
             targetY = nearest.y;
@@ -762,6 +963,18 @@ class GameScene extends Phaser.Scene {
                 nearest = e;
               }
             });
+            
+            if (this.bossActive && this.boss && this.boss.active) {
+              const bossDist = Phaser.Math.Distance.Between(
+                  this.player.x, this.player.y,
+                  this.boss.x, this.boss.y
+              );
+              if (bossDist < nearestDist) {
+                  nearestDist = bossDist;
+                  nearest = this.boss;
+              }
+            }
+            
             if (nearest) {
               targetX = nearest.x;
               targetY = nearest.y;
@@ -879,6 +1092,11 @@ class GameScene extends Phaser.Scene {
             }
             if (e && e.anims) e.anims.stop();
         });
+        
+        if (this.boss && this.boss.active && this.boss.body) {
+            this.boss.body.setVelocity(0, 0);
+            this.boss.body.moves = false;
+        }
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             if (this.bullets[i]) this.bullets[i].destroy();
         }
@@ -905,55 +1123,77 @@ class GameScene extends Phaser.Scene {
                 else e.play('enemy-walk', true);
             }
         });
+        
+        if (this.boss && this.boss.active && this.boss.body) {
+            this.boss.body.moves = true;
+        }
         this.orbs.forEach(o => { if (o) o.setVisible(true); });
         document.getElementById('upgrade-screen').style.display = 'none';
     }
 
     showUpgradeScreen() {
-        const available = ['pierce', 'vampire', 'faster-fire-rate', 'more-speed', 'extra-hp'];
-        if (!this.hasMagnet) available.push('orb-magnet');
-        if (this.hasMagnet) available.push('stronger-magnet');
+        const available = [];
 
-        // Hide vampire card if maxed out (level 3)
-        if (this.vampireLevel >= 3) {
-            document.querySelector('[data-upgrade="vampire"]').style.display = 'none';
-        } else {
-            // Update vampire card description to show next level's heal amount
+        // Pierce — cap at 5
+        if (this.piercePower < 5) available.push('pierce');
+
+        // Vampire — cap at 3
+        if (this.vampireLevel < 3) {
             const vampireCard = document.querySelector('[data-upgrade="vampire"]');
             if (vampireCard) {
                 const nextLevel = this.vampireLevel + 1;
-                const healAmount = nextLevel * 2;
-                vampireCard.innerHTML = `
-                    <h3>Vampire</h3>
-                    <p>Killing an enemy heals ${healAmount} HP</p>
-                `;
+                vampireCard.innerHTML = `<h3>Vampire</h3><p>Killing an enemy heals ${nextLevel * 2} HP</p>`;
             }
+            available.push('vampire');
         }
 
-        // Show multishot only if multishotLevel < 3
+        // Faster fire rate — cap at 200ms
+        if (this.fireRate > 200) available.push('faster-fire-rate');
+
+        // More speed — cap at 400
+        if (this.playerSpeed < 400) available.push('more-speed');
+
+        // Extra HP — no cap
+        available.push('extra-hp');
+
+        // Orb magnet
+        if (!this.hasMagnet) available.push('orb-magnet');
+
+        // Stronger magnet — cap at 5 upgrades
+        if (this.hasMagnet && this.magnetSpeed < 400) available.push('stronger-magnet');
+
+        // Multishot — cap at 3
         if (this.multishotLevel < 3) {
+            const msCard = document.querySelector('[data-upgrade="multishot"]');
+            if (msCard) {
+                const desc = this.multishotLevel === 0 ? 'Fire an extra bullet every 3 shots'
+                    : this.multishotLevel === 1 ? 'Fire an extra bullet every 2 shots'
+                    : 'Fire an extra bullet every shot';
+                msCard.innerHTML = `<h3>Multishot</h3><p>${desc}</p>`;
+            }
             available.push('multishot');
         }
 
-        // Show wider-spread only if multishotLevel >= 3 && spreadAngle < 60
-        if (this.multishotLevel >= 3 && this.spreadAngle < 60) {
-            available.push('wider-spread');
-        }
+        // Wider spread — only after multishot maxed
+        if (this.multishotLevel >= 3 && this.spreadAngle < 60) available.push('wider-spread');
 
-        // Show thorns only if thornsDamage < 100 (not maxed out)
+        // Thorns — cap at 3 tiers
         if (this.thornsDamage < 100) {
+            const thornsCard = document.querySelector('[data-upgrade="thorns"]');
+            if (thornsCard) {
+                const next = this.thornsDamage === 0 ? 20 : this.thornsDamage === 20 ? 50 : 100;
+                thornsCard.innerHTML = `<h3>Thorns</h3><p>Reflect ${next} damage to enemies that touch you</p>`;
+            }
             available.push('thorns');
-        } else {
-            // Hide thorns card if maxed out
-            document.querySelector('[data-upgrade="thorns"]').style.display = 'none';
         }
 
-        // Show bigger-bullets only if bulletRadius < 25 (not maxed out)
+        // Bigger bullets — cap at 5 upgrades (radius 25)
         if (this.bulletRadius < 25) {
+            const bbCard = document.querySelector('[data-upgrade="bigger-bullets"]');
+            if (bbCard) {
+                bbCard.innerHTML = `<h3>Bigger Bullets</h3><p>Bullet radius: ${this.bulletRadius} → ${this.bulletRadius + 5}</p>`;
+            }
             available.push('bigger-bullets');
-        } else {
-            // Hide bigger-bullets card if maxed out
-            document.querySelector('[data-upgrade="bigger-bullets"]').style.display = 'none';
         }
 
         // Shuffle and pick 3
@@ -1053,6 +1293,12 @@ class GameScene extends Phaser.Scene {
             const healthPercent = Math.max(0, Math.min(1, this.playerHealth / this.maxHealth));
             hpBar.style.width = (healthPercent * 100) + '%';
         }
+        
+        // Update Phaser health bar
+        if (this.healthBarFill && !this.isMobile) {
+            const healthPercent = Math.max(0, Math.min(1, this.playerHealth / this.maxHealth));
+            this.healthBarFill.setSize(200 * healthPercent, 20);
+        }
     }
 
     takeDamage(amount) {
@@ -1077,6 +1323,26 @@ class GameScene extends Phaser.Scene {
     resetUpgradeCards() {
         document.querySelector('[data-upgrade="orb-magnet"]').style.display = 'block';
         document.querySelector('[data-upgrade="stronger-magnet"]').style.display = 'none';
+    }
+    
+    spawnBoss() {
+        this.enemies.forEach(e => {
+            if (e && e.active) e.destroy();
+        });
+        this.enemies = [];
+        const camera = this.cameras.main;
+        const x = camera.scrollX + camera.width / camera.zoom + 100;
+        const y = camera.scrollY + (camera.height / camera.zoom) / 2;
+        this.boss = this.physics.add.sprite(x, y, 'boss-south');
+        this.boss.setScale(0.4);
+        this.bossActive = true;
+        
+        // Show DOM boss HUD
+        const bossHud = document.getElementById('boss-hud');
+        if (bossHud) {
+            bossHud.style.display = 'block';
+            bossHud.style.padding = '4px 12px';
+        }
     }
     
     toggleAimMode() {
@@ -1135,6 +1401,10 @@ class GameScene extends Phaser.Scene {
 
     gameOver() {
         try {
+            // Hide boss HUD on game over
+            const bossHud = document.getElementById('boss-hud');
+            if (bossHud) bossHud.style.display = 'none';
+            
             this.upgradeScreenOpen = false;
             this.gameOverScreenOpen = true; // Set game over flag to block input
             // More aggressively stop spawning - use remove() instead of paused
