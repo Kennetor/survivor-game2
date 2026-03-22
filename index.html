@@ -28,6 +28,23 @@
         padding: 0;
       }
 
+      #game-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #game-container canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
       #damage-flash {
         position: fixed;
         top: 0;
@@ -232,11 +249,11 @@
         }
       }
     </style>
-    <script type="module" crossorigin src="/survivor-game2/assets/index-Da44Q9V6.js"></script>
+    <script type="module" crossorigin src="/survivor-game2/assets/index-BF9BTtpr.js"></script>
     <link rel="stylesheet" crossorigin href="/survivor-game2/assets/index-CsUDhMuy.css">
   </head>
   <body>
-    <div id="game-container">
+     <div id="game-container" style="position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;">
         <canvas id="game-canvas"></canvas>
     </div>
     
