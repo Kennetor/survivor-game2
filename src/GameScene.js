@@ -391,6 +391,8 @@ class GameScene extends Phaser.Scene {
         
         // Initialize control mode to fixed
         this.setControlMode('fixed');
+        
+        this.updateUI();
     }
 
     update() {
@@ -1355,7 +1357,7 @@ class GameScene extends Phaser.Scene {
             bossWarning.id = 'boss-warning';
             bossWarning.style.cssText = `
                 position: fixed;
-                top: 80px;
+                top: 100px;
                 left: 0;
                 width: 100%;
                 text-align: center;
@@ -1420,6 +1422,16 @@ class GameScene extends Phaser.Scene {
                     console.log('Error destroying player:', err);
                 }
             }
+            
+            // Destroy boss on game over
+            if (this.boss && this.boss.active) {
+                try {
+                    this.boss.destroy();
+                } catch (err) {
+                    console.log('Error destroying boss:', err);
+                }
+            }
+            this.bossActive = false;
             
             // Destroy enemies completely to stop animations (fallback solution)
             this.enemies.forEach((enemy, index) => {
