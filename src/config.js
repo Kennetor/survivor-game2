@@ -17,7 +17,9 @@ backgroundColor: '#2a2a2a',
     parent: 'game-container',
     scale: {
         mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.NO_CENTER
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: window.innerWidth,
+        height: window.innerHeight,
     }
 };
 

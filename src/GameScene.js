@@ -105,11 +105,7 @@ class GameScene extends Phaser.Scene {
         this.groundGraphics.fillRect(-10000, -10000, 20000, 20000);
 
         // Create player using sprite sheet
-        this.player = this.physics.add.sprite(
-            this.cameras.main.centerX,
-            this.cameras.main.centerY,
-            'player'
-        );
+        this.player = this.physics.add.sprite(0, 0, 'player');
         this.player.setScale(2);
         this.player.setCollideWorldBounds(false);
         this.player.play('walk-down');
@@ -245,41 +241,6 @@ class GameScene extends Phaser.Scene {
         this.bossHP = 50;
         this.bossMaxHP = 50;
         
-        // Spawn boss after 59 seconds with warning
-        this.time.delayedCall(59000, () => {
-            const camW = this.cameras.main.width;
-            const camH = this.cameras.main.height;
-
-            const bossWarning = document.createElement('div');
-            bossWarning.id = 'boss-warning';
-            bossWarning.style.cssText = `
-                position: fixed;
-                top: 80px;
-                left: 0;
-                width: 100%;
-                text-align: center;
-                font-family: monospace;
-                font-size: 20px;
-                font-weight: bold;
-                color: #ff4400;
-                text-shadow: 0 0 8px #ff4400;
-                z-index: 101;
-                pointer-events: none;
-                opacity: 0;
-                transition: opacity 0.4s;
-            `;
-            bossWarning.textContent = '⚠ THE BEAST APPROACHES ⚠';
-            document.body.appendChild(bossWarning);
-            setTimeout(() => bossWarning.style.opacity = '1', 50);
-
-            this.time.delayedCall(1000, () => {
-                this.spawnBoss();
-                this.time.delayedCall(1500, () => {
-                    bossWarning.style.opacity = '0';
-                    setTimeout(() => bossWarning.remove(), 500);
-                }, [], this);
-            }, [], this);
-        }, [], this);
         
         // Spawn 3 enemies immediately when scene starts
         this.time.delayedCall(0, () => {
@@ -298,6 +259,7 @@ class GameScene extends Phaser.Scene {
 
         // Camera
         this.cameras.main.startFollow(this.player);
+        this.cameras.main.setFollowOffset(0, 0);
         this.cameras.main.setZoom(this.isMobile ? 0.8 : 1.5);
 
         // Collisions
@@ -1386,6 +1348,37 @@ class GameScene extends Phaser.Scene {
         const timeDisplay = document.getElementById('hud-time');
         if (timeDisplay) {
             timeDisplay.textContent = `TIME: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        if (this.survivalTime === 60 && !this.bossActive && !this.boss) {
+            const bossWarning = document.createElement('div');
+            bossWarning.id = 'boss-warning';
+            bossWarning.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 0;
+                width: 100%;
+                text-align: center;
+                font-family: monospace;
+                font-size: 20px;
+                font-weight: bold;
+                color: #ff4400;
+                text-shadow: 0 0 8px #ff4400;
+                z-index: 101;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.4s;
+            `;
+            bossWarning.textContent = '⚠ THE BEAST APPROACHES ⚠';
+            document.body.appendChild(bossWarning);
+            setTimeout(() => bossWarning.style.opacity = '1', 50);
+            this.time.delayedCall(1000, () => {
+                this.spawnBoss();
+                this.time.delayedCall(1500, () => {
+                    bossWarning.style.opacity = '0';
+                    setTimeout(() => bossWarning.remove(), 500);
+                }, [], this);
+            }, [], this);
         }
     }
 
