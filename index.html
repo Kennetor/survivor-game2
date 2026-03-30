@@ -66,14 +66,7 @@
         width: 100%; height: 100%;
         background: rgba(0,0,0,0.85);
         z-index: 80;
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 16px !important;
-        padding: 20px;
-        box-sizing: border-box;
-        overflow-y: auto;
+        overflow: hidden;
       }
 
       #upgrade-screen h2 {
@@ -118,8 +111,6 @@
       @media (min-width: 769px) {
         #upgrade-screen {
           flex-direction: column !important;
-          justify-content: center !important;
-          align-items: center !important;
           padding: 40px 20px !important;
         }
         
@@ -158,8 +149,6 @@
       @media (max-width: 768px) {
         #upgrade-screen {
           flex-direction: column !important;
-          align-items: center !important;
-          justify-content: flex-start !important;
           padding: 60px 20px 20px 20px !important;
           gap: 20px !important;
         }
@@ -228,8 +217,6 @@
       @media (max-width: 768px) {
         #upgrade-screen {
           flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
           overflow-y: auto !important;
           padding: 20px !important;
           gap: 12px !important;
@@ -249,7 +236,7 @@
         }
       }
     </style>
-    <script type="module" crossorigin src="/survivor-game2/assets/index-CvTyDf7m.js"></script>
+    <script type="module" crossorigin src="/survivor-game2/assets/index-Cp_4Xso5.js"></script>
     <link rel="stylesheet" crossorigin href="/survivor-game2/assets/index-CsUDhMuy.css">
   </head>
   <body>
@@ -258,10 +245,13 @@
     </div>
     
     <!-- Boss HUD -->
-    <div id="boss-hud" style="display:none; position:fixed; top:60px; left:0; width:100%; padding: 0 24px; box-sizing:border-box; z-index:100;">
-        <div style="position:relative; width:100%; height:28px; background:#333; border-radius:5px; overflow:hidden;">
-            <div id="boss-hp-bar" style="height:100%; width:100%; background:#cc0000; transition: width 0.1s;"></div>
-            <div style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-family:monospace; font-size:14px; color:#fff; font-weight:bold; letter-spacing:1px;">THE BEAST</div>
+    <div id="boss-hud" style="display:none; position:fixed; top:60px; left:50%; transform:translateX(-50%); width:min(600px, 90%); z-index:100;">
+        <div style="position:relative; width:100%; aspect-ratio:925/177;">
+            <div style="position:absolute; inset:0; overflow:hidden;">
+                <img id="boss-hp-bar" src="/survivor-game2/HUD/boss_bar_fill.png" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill; transform-origin:left center;">
+            </div>
+            <img src="/survivor-game2/HUD/boss_bar_frame.png" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;">
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:monospace; font-size:23px; font-family: fantasy; color:#ffe066; font-weight:bold; letter-spacing:2px; text-shadow:0 0 6px #000;">THE BEAST</div>
         </div>
     </div>
     
@@ -294,51 +284,53 @@
     
     <!-- Upgrade Screen -->
     <div id="upgrade-screen">
-      <h2>LEVEL UP!</h2>
-      <div class="upgrade-cards-container">
-        <div class="upgrade-card" data-upgrade="pierce">
-          <h3>Pierce</h3>
-          <p>Bullets pass through 1 extra enemy</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="multishot">
-          <h3>Multishot</h3>
-          <p>Fire an extra bullet every 3 shots</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="vampire">
-          <h3>Vampire</h3>
-          <p>Killing an enemy heals 2 HP</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="thorns">
-          <h3>Thorns</h3>
-          <p>Reflect 20 damage to enemies that touch you</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="wider-spread" style="display:none">
-          <h3>Wider Spread</h3>
-          <p>Increase bullet spread angle</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="faster-fire-rate">
-          <h3>Faster Fire Rate</h3>
-          <p>Reduce fire interval by 200ms</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="more-speed">
-          <h3>More Speed</h3>
-          <p>Increase player speed by 20</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="extra-hp">
-          <h3>Extra HP</h3>
-          <p>Increase max HP by 25 and heal 25</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="orb-magnet">
-          <h3>Orb Magnet</h3>
-          <p>XP orbs are attracted toward you</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="stronger-magnet" style="display:none">
-          <h3>Stronger Magnet</h3>
-          <p>Orbs fly toward you faster</p>
-        </div>
-        <div class="upgrade-card" data-upgrade="bigger-bullets">
-          <h3>Bigger Bullets</h3>
-          <p>Increase bullet size and hit radius</p>
+      <div id="upgrade-inner" style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; overflow-y:auto; padding:20px; box-sizing:border-box;">
+        <h2>LEVEL UP!</h2>
+        <div class="upgrade-cards-container">
+          <div class="upgrade-card" data-upgrade="pierce">
+            <h3>Pierce</h3>
+            <p>Bullets pass through 1 extra enemy</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="multishot">
+            <h3>Multishot</h3>
+            <p>Fire an extra bullet every 3 shots</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="vampire">
+            <h3>Vampire</h3>
+            <p>Killing an enemy heals 2 HP</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="thorns">
+            <h3>Thorns</h3>
+            <p>Reflect 20 damage to enemies that touch you</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="wider-spread" style="display:none">
+            <h3>Wider Spread</h3>
+            <p>Increase bullet spread angle</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="faster-fire-rate">
+            <h3>Faster Fire Rate</h3>
+            <p>Reduce fire interval by 200ms</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="more-speed">
+            <h3>More Speed</h3>
+            <p>Increase player speed by 20</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="extra-hp">
+            <h3>Extra HP</h3>
+            <p>Increase max HP by 25 and heal 25</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="orb-magnet">
+            <h3>Orb Magnet</h3>
+            <p>XP orbs are attracted toward you</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="stronger-magnet" style="display:none">
+            <h3>Stronger Magnet</h3>
+            <p>Orbs fly toward you faster</p>
+          </div>
+          <div class="upgrade-card" data-upgrade="bigger-bullets">
+            <h3>Bigger Bullets</h3>
+            <p>Increase bullet size and hit radius</p>
+          </div>
         </div>
       </div>
     </div>
