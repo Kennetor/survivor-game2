@@ -41,7 +41,7 @@ class GameScene extends Phaser.Scene {
         const bossHud = document.getElementById('boss-hud');
         if (bossHud) bossHud.style.display = 'none';
         const bossHpBar = document.getElementById('boss-hp-bar');
-        if (bossHpBar) bossHpBar.style.width = '100%';
+        if (bossHpBar) bossHpBar.style.transform = 'scaleX(1)';
         
         // Only reset game state if this is a restart (not initial load)
         // Check if we're restarting by seeing if the scene was previously active
@@ -727,7 +727,7 @@ class GameScene extends Phaser.Scene {
                     
                     // Update DOM boss HP bar
                     const bossHpBar = document.getElementById('boss-hp-bar');
-                    if (bossHpBar) bossHpBar.style.width = (this.bossHP / this.bossMaxHP * 100) + '%';
+                    if (bossHpBar) bossHpBar.style.transform = `scaleX(${this.bossHP / this.bossMaxHP})`;
                     
                     if (this.bossHP <= 0) {
                         const bx = this.boss.x;
@@ -1357,7 +1357,7 @@ class GameScene extends Phaser.Scene {
             bossWarning.id = 'boss-warning';
             bossWarning.style.cssText = `
                 position: fixed;
-                top: 100px;
+                top: 200px;
                 left: 0;
                 width: 100%;
                 text-align: center;
