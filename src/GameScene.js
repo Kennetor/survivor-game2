@@ -41,7 +41,7 @@ class GameScene extends Phaser.Scene {
         const bossHud = document.getElementById('boss-hud');
         if (bossHud) bossHud.style.display = 'none';
         const bossHpBar = document.getElementById('boss-hp-bar');
-        if (bossHpBar) bossHpBar.style.transform = 'scaleX(1)';
+        if (bossHpBar) bossHpBar.style.width = '100%';
         
         // Only reset game state if this is a restart (not initial load)
         // Check if we're restarting by seeing if the scene was previously active
@@ -727,7 +727,7 @@ class GameScene extends Phaser.Scene {
                     
                     // Update DOM boss HP bar
                     const bossHpBar = document.getElementById('boss-hp-bar');
-                    if (bossHpBar) bossHpBar.style.transform = `scaleX(${this.bossHP / this.bossMaxHP})`;
+                    if (bossHpBar) bossHpBar.style.width = (this.bossHP / this.bossMaxHP * 100) + '%';
                     
                     if (this.bossHP <= 0) {
                         const bx = this.boss.x;
@@ -1245,17 +1245,17 @@ class GameScene extends Phaser.Scene {
         }
         
         // Update DOM XP bar
-        const xpBar = document.getElementById('xp-bar');
-        if (xpBar) {
+        const xpBarClip = document.getElementById('xp-bar-clip');
+        if (xpBarClip) {
             const progress = Math.max(0, Math.min(1, this.xp / this.xpForNextLevel));
-            xpBar.style.width = (progress * 100) + '%';
+            xpBarClip.style.width = (progress * 258) + 'px';
         }
         
         // Update DOM HP bar
-        const hpBar = document.getElementById('hp-bar');
-        if (hpBar) {
+        const hpBarClip = document.getElementById('hp-bar-clip');
+        if (hpBarClip) {
             const healthPercent = Math.max(0, Math.min(1, this.playerHealth / this.maxHealth));
-            hpBar.style.width = (healthPercent * 100) + '%';
+            hpBarClip.style.width = `${Math.max(healthPercent * 300, 4)}px`;
         }
         
         // Update Phaser health bar
@@ -1357,7 +1357,7 @@ class GameScene extends Phaser.Scene {
             bossWarning.id = 'boss-warning';
             bossWarning.style.cssText = `
                 position: fixed;
-                top: 200px;
+                top: 100px;
                 left: 0;
                 width: 100%;
                 text-align: center;

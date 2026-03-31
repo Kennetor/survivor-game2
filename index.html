@@ -243,7 +243,7 @@
     </div>
     
     <!-- Boss HUD -->
-    <div id="boss-hud" style="display:none; position:fixed; top:60px; left:50%; transform:translateX(-50%); width:min(600px, 90%); z-index:100;">
+    <div id="boss-hud" style="display:none; position:fixed; top:130px; left:50%; transform:translateX(-50%); width:min(600px, 90%); z-index:100;">
         <div style="position:relative; width:100%; aspect-ratio:925/177;">
             <div style="position:absolute; inset:0; overflow:hidden;">
                 <img id="boss-hp-bar" src="/HUD/boss_bar_fill.png" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill; transform-origin:left center;">
@@ -256,29 +256,27 @@
     <!-- Damage Flash -->
     <div id="damage-flash" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,0.35);pointer-events:none;opacity:0;transition:opacity 0.3s ease;z-index:50;"></div>
     
-    <!-- HUD -->
-    <div id="hud" style="position:fixed;top:0;left:0;width:100%;pointer-events:none;z-index:20;">
-      <!-- Top left -->
-      <div style="position:absolute;top:12px;left:16px;display:flex;gap:16px;align-items:center;">
-        <span id="hud-level" style="color:#ffe066;font-size:15px;font-weight:bold;font-family:monospace;">LVL 1</span>
-        <span id="hud-time" style="color:#66eeff;font-size:15px;font-family:monospace;">TIME: 0:00</span>
-      </div>
-      <!-- Top right -->
-      <div style="position:absolute;top:10px;right:16px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="color:white;font-size:11px;font-family:monospace;">HP</span>
-          <div style="width:160px;height:10px;background:#333;border-radius:5px;overflow:hidden;">
-            <div id="hp-bar" style="height:100%;width:100%;background:#e03030;border-radius:5px;transition:width 0.1s;"></div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="color:white;font-size:11px;font-family:monospace;">XP</span>
-          <div style="width:160px;height:10px;background:#333;border-radius:5px;overflow:hidden;">
-            <div id="xp-bar" style="height:100%;width:0%;background:#e0e000;border-radius:5px;transition:width 0.1s;"></div>
-          </div>
-        </div>
+<!-- HUD -->
+<div id="hud" style="position:fixed;top:0;left:0;width:100%;pointer-events:none;z-index:20;">
+  <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:2px;align-items:center;">
+    
+    <!-- HP Bar -->
+    <div style="position:relative;width:400px;height:60px;">
+      <img src="/HUD/Hp_Xp_Frame.png" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+      <div id="hp-bar-clip" style="position:absolute;position:absolute;left:50px;top:12px;width:300px;height:36px;overflow:hidden;">
+        <img id="hp-bar" src="/HUD/Player_Hp_Fill.png" style="width:300px;height:36px;object-fit:fill;">
       </div>
     </div>
+    
+    <!-- XP Bar -->
+    <div style="position:relative;width:340px;height:50px;">
+      <img src="/HUD/Hp_Xp_Frame.png" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+      <div id="xp-bar-clip" style="position:absolute;left:42px;top:10px;width:0px;height:30px;overflow:hidden;">
+        <img id="xp-bar" src="/HUD/Player_Xp_Fill.png" style="position:absolute;top:0;left:0;width:258px;height:30px;object-fit:fill;">
+      </div>
+    </div>
+  </div>
+</div>
     
     <!-- Upgrade Screen -->
     <div id="upgrade-screen">
@@ -342,12 +340,6 @@
     <div id="game-over-screen">
       <h1>GAME OVER</h1>
       <div id="game-over-time">Time: 0:00</div>
-      <div id="game-over-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;color:#aaa;font-size:14px;margin:15px auto;text-align:left;width:280px;">
-        <div>Enemies Killed: <span id="stat-kills" style="color:white;"></span></div>
-        <div>Damage Dealt: <span id="stat-damage-dealt" style="color:white;"></span></div>
-        <div>Damage Taken: <span id="stat-damage-taken" style="color:white;"></span></div>
-        <div>Level Reached: <span id="stat-level" style="color:white;"></span></div>
-      </div>
       <div id="restart-button">Click to Restart</div>
     </div>
 

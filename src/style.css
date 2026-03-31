@@ -30,7 +30,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;
     --text-h: #f3f4f6;
@@ -48,11 +48,11 @@
   #social .button-icon {
     filter: invert(1) brightness(2);
   }
-}
+} */
 
-body {
+/* body {
   margin: 0;
-}
+} */
 
 h1,
 h2 {
@@ -133,12 +133,12 @@ code {
     z-index: 0;
   }
 
-  .framework,
+  /* .framework,
   .vite {
     position: absolute;
-  }
+  } */
 
-  .framework {
+  /* .framework {
     z-index: 1;
     top: 34px;
     height: 28px;
@@ -153,10 +153,10 @@ code {
     width: auto;
     transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
       scale(0.8);
-  }
+  } */
 }
 
-#app {
+/* #app {
   width: 1126px;
   max-width: 100%;
   margin: 0 auto;
@@ -166,7 +166,7 @@ code {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-}
+} */
 
 #center {
   display: flex;
