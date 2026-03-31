@@ -29,7 +29,14 @@
     font-size: 16px;
   }
 }
-
+img[src*="Hp_Xp_Frame.png"],
+img[src*="HP_Xp_Frame.png"] {
+    image-rendering: crisp-edges;           /* Modern browsers */
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: pixelated;             /* Strong fallback */
+    -ms-interpolation-mode: nearest-neighbor;
+}
 /* @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;

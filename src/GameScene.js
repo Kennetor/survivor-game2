@@ -203,11 +203,13 @@ class GameScene extends Phaser.Scene {
         this.xpBarBg = this.add.rectangle(16, 60, 200, 10, 0x333333);
         this.xpBarBg.setOrigin(0, 0);
         this.xpBarBg.setScrollFactor(0);
+        this.xpBarBg.setVisible(false); // hide it
         
         // XP bar fill
         this.xpBarFill = this.add.rectangle(16, 60, 0, 10, 0x00ff00);
         this.xpBarFill.setOrigin(0, 0);
         this.xpBarFill.setScrollFactor(0);
+        this.xpBarFill.setVisible(false); // hide it
         
         // Health bar background
         this.healthBarBg = this.add.rectangle(600, 16, 200, 20, 0x333333);
@@ -1038,6 +1040,7 @@ class GameScene extends Phaser.Scene {
         this.xpForNextLevel = 30 + (this.level - 1) * 50; // Balance: 30 + (level-1) * 50 XP
         
         // Pause game and show DOM upgrade screen
+        this.updateUI();
         this.openUpgradeScreen();
     }
 
@@ -1244,18 +1247,22 @@ class GameScene extends Phaser.Scene {
             levelDisplay.textContent = 'LVL ' + this.level;
         }
         
-        // Update DOM XP bar
+            // Update DOM XP bar
+        const xpBar = document.getElementById('xp-bar'); // the full bar container
         const xpBarClip = document.getElementById('xp-bar-clip');
-        if (xpBarClip) {
-            const progress = Math.max(0, Math.min(1, this.xp / this.xpForNextLevel));
-            xpBarClip.style.width = (progress * 258) + 'px';
-        }
+
+        if (xpBar && xpBarClip) {
+        const progress = Math.max(0, Math.min(1, this.xp / this.xpForNextLevel));
+
+        // const fullWidth = xpBar.clientWidth; // 👈 real width
+        xpBarClip.style.width = (progress * 100) + '%';
+}
         
         // Update DOM HP bar
         const hpBarClip = document.getElementById('hp-bar-clip');
         if (hpBarClip) {
             const healthPercent = Math.max(0, Math.min(1, this.playerHealth / this.maxHealth));
-            hpBarClip.style.width = `${Math.max(healthPercent * 300, 4)}px`;
+            hpBarClip.style.width = (healthPercent * 330) + 'px';
         }
         
         // Update Phaser health bar
